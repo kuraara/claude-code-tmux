@@ -1,62 +1,49 @@
-# Claude Code stack for Portainer (NSG-L, Debian)
+# Claude Code (tmux) stack for Portainer — deploy from this Git repo:
+#   Stacks -> Add stack -> Repository
+#     Repository URL:       <your git remote>
+#     Repository reference: refs/heads/feature/tmux-auth-page  (main once merged)
+#     Compose path:         docker-compose.yml
+#   Environment variables: PUID, PGID (printed by setup-media-access.sh), TZ
 #
-# Environment variables to set in Portainer (values come from setup-media-access.sh):
-#   PUID   uid of kuraara          (script prints it)
-#   PGID   gid of the media group  (script prints it; 1500 by default)
-#   TZ     Australia/Perth
+# Host layout (all on the media disk):
+#   /media/disk1/claude          -> /workspace        working directory
+#   /media/disk1/claude/.home    -> $HOME             config, sign-in, history
 #
-# Everything lives under /media/disk1/claude on the host:
-#   /media/disk1/claude              -> /workspace   (working directory)
-#   /media/disk1/claude/.home        -> HOME         (config: ~/.claude, ~/.claude.json,
-#                                                     login/auth, npm global install)
-# So config, history and the CLI itself survive container recreation and are
-# visible on the host. Make sure /media/disk1/claude is writable by PUID:PGID
-# (setup-media-access.sh does this).
-#
-# FIRST RUN
-#   1. Deploy the stack. The first start installs Claude Code into the persisted
-#      prefix (needs internet, takes a minute). Watch: docker logs -f claude-code
-#   2. Open a session:   docker exec -it claude-code claude
-#      (first time it prompts you to log in / authenticate)
-#   Or authenticate with an API key instead by adding ANTHROPIC_API_KEY below.
-#
-# SHARED CONTEXT
-#   /opt/claude-context (from the bootstrap script) is mounted at /context so
-#   agents can grep earlier decisions. Remove that line if you don't want it.
-#
-# NOTE: there is no official Claude Code image, so this uses node + npm.
-# Version is "latest" at first install; to update:
-#   docker exec -it claude-code npm update -g @anthropic-ai/claude-code
+# Sign-in page:  http://<nsg-l-ip>:8765
+# Attach:        docker exec -it claude-code tmux attach -t claude
 
 services:
   claude-code:
-    image: node:22-bookworm        # non-slim: includes git, which Claude Code uses
+    build:
+      context: .
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1500}
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
+    image: claude-code-tmux:local
     container_name: claude-code
     restart: unless-stopped
-    user: "${PUID:-1000}:${PGID:-1500}"
-    working_dir: /workspace
-    stdin_open: true
-    tty: true
+    init: true                     # reaps zombie processes from tmux/claude
     environment:
       - TZ=${TZ:-Australia/Perth}
-      - HOME=/workspace/.home
-      - NPM_CONFIG_PREFIX=/workspace/.home/.npm-global
-      - PATH=/workspace/.home/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      # Optional: API-key auth instead of interactive login (keep it out of git):
+      - CONTAINER_NAME=claude-code
+      # Optional extra flags for the claude command inside tmux:
+      # - CLAUDE_ARGS=--continue
+      # Optional API-key auth instead of signing in (page then shows green):
       # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
       - /media/disk1/claude:/workspace
       - /opt/claude-context:/context
-    # Install once into the persisted prefix, then idle so you can `docker exec` in.
-    command:
-      - sh
-      - -c
-      - |
-        mkdir -p "$$HOME" "$$NPM_CONFIG_PREFIX"
-        git config --global --add safe.directory '*'
-        if ! command -v claude >/dev/null 2>&1; then
-          echo "Installing Claude Code..."
-          npm install -g @anthropic-ai/claude-code
-        fi
-        echo "Ready. Run: docker exec -it claude-code claude"
-        exec sleep infinity
+    ports:
+      - "${AUTH_PAGE_HOST_PORT:-8765}:8765"
+    # Optional: route the page through Traefik instead of / as well as the port.
+    # networks: [traefik_proxy]
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.claude-auth.rule=Host(`claude.home.lan`)"
+    #   - "traefik.http.routers.claude-auth.entrypoints=web"
+    #   - "traefik.http.services.claude-auth.loadbalancer.server.port=8765"
+
+# networks:
+#   traefik_proxy:
+#     external: true
