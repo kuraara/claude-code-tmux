@@ -27,6 +27,7 @@ ENV HOME=/workspace/.home \
     WORKDIR=/workspace \
     TMUX_SESSION=claude \
     AUTH_PAGE_PORT=8765 \
+    CLAUDE_CONTINUE=1 \
     DISABLE_AUTOUPDATER=1
 
 USER node

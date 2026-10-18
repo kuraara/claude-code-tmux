@@ -27,8 +27,11 @@ services:
     environment:
       - TZ=${TZ:-Australia/Perth}
       - CONTAINER_NAME=claude-code
+      # Resume the last conversation on every start/restart (1 = on, 0 = off).
+      # Falls back to a new conversation if there's nothing to resume.
+      - CLAUDE_CONTINUE=${CLAUDE_CONTINUE:-1}
       # Optional extra flags for the claude command inside tmux:
-      # - CLAUDE_ARGS=--continue
+      # - CLAUDE_ARGS=--model opus
       # Optional API-key auth instead of signing in (page then shows green):
       # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:

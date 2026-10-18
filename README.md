@@ -54,6 +54,13 @@ docker exec -it claude-code tmux attach -t claude
 Detach with `Ctrl-b`, then `d`. If Claude exits, it restarts after 5 seconds.
 Press `Ctrl-C` during the countdown to get a shell instead.
 
+## Conversations
+
+Claude resumes the most recent conversation every time it starts, including
+after a container restart or reboot. If there's nothing to resume, it starts a
+new conversation. To start fresh, run `/clear` inside Claude. To turn resuming
+off, set `CLAUDE_CONTINUE=0`.
+
 ## Update Claude Code
 
 The auto-updater is off because the CLI is baked into the image. To update,
@@ -73,6 +80,7 @@ tmux. Keep it on your LAN. Don't forward port 8765 through the router.
 | `PUID` / `PGID` | 1000 / 1500 | Build-time uid and gid for file ownership. |
 | `CLAUDE_CODE_VERSION` | latest | Build-time npm version. |
 | `AUTH_PAGE_HOST_PORT` | 8765 | Host port for the page. |
-| `CLAUDE_ARGS` | (none) | Extra flags for `claude`, for example `--continue`. |
+| `CLAUDE_CONTINUE` | 1 | Resumes the last conversation on start. Set to `0` to always start fresh. |
+| `CLAUDE_ARGS` | (none) | Extra flags for `claude`, for example `--model opus`. |
 | `SKIP_ONBOARDING` | 1 | Skips the first-run theme screens. Only applies if `~/.claude.json` doesn't exist yet. |
 | `ANTHROPIC_API_KEY` | (unset) | Uses API-key auth instead of a Claude account sign-in. |
