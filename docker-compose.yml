@@ -1,0 +1,62 @@
+# Claude Code stack for Portainer (NSG-L, Debian)
+#
+# Environment variables to set in Portainer (values come from setup-media-access.sh):
+#   PUID   uid of kuraara          (script prints it)
+#   PGID   gid of the media group  (script prints it; 1500 by default)
+#   TZ     Australia/Perth
+#
+# Everything lives under /media/disk1/claude on the host:
+#   /media/disk1/claude              -> /workspace   (working directory)
+#   /media/disk1/claude/.home        -> HOME         (config: ~/.claude, ~/.claude.json,
+#                                                     login/auth, npm global install)
+# So config, history and the CLI itself survive container recreation and are
+# visible on the host. Make sure /media/disk1/claude is writable by PUID:PGID
+# (setup-media-access.sh does this).
+#
+# FIRST RUN
+#   1. Deploy the stack. The first start installs Claude Code into the persisted
+#      prefix (needs internet, takes a minute). Watch: docker logs -f claude-code
+#   2. Open a session:   docker exec -it claude-code claude
+#      (first time it prompts you to log in / authenticate)
+#   Or authenticate with an API key instead by adding ANTHROPIC_API_KEY below.
+#
+# SHARED CONTEXT
+#   /opt/claude-context (from the bootstrap script) is mounted at /context so
+#   agents can grep earlier decisions. Remove that line if you don't want it.
+#
+# NOTE: there is no official Claude Code image, so this uses node + npm.
+# Version is "latest" at first install; to update:
+#   docker exec -it claude-code npm update -g @anthropic-ai/claude-code
+
+services:
+  claude-code:
+    image: node:22-bookworm        # non-slim: includes git, which Claude Code uses
+    container_name: claude-code
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1500}"
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    environment:
+      - TZ=${TZ:-Australia/Perth}
+      - HOME=/workspace/.home
+      - NPM_CONFIG_PREFIX=/workspace/.home/.npm-global
+      - PATH=/workspace/.home/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      # Optional: API-key auth instead of interactive login (keep it out of git):
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - /media/disk1/claude:/workspace
+      - /opt/claude-context:/context
+    # Install once into the persisted prefix, then idle so you can `docker exec` in.
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p "$$HOME" "$$NPM_CONFIG_PREFIX"
+        git config --global --add safe.directory '*'
+        if ! command -v claude >/dev/null 2>&1; then
+          echo "Installing Claude Code..."
+          npm install -g @anthropic-ai/claude-code
+        fi
+        echo "Ready. Run: docker exec -it claude-code claude"
+        exec sleep infinity
