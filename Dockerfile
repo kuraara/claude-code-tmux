@@ -23,6 +23,9 @@ RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
 COPY src/ /opt/claude-stack/
 RUN chmod 755 /opt/claude-stack/*.sh
 
+# Owned by node, so a fresh Docker volume mounted here starts out writable.
+RUN mkdir -p /workspace /context && chown node:node /workspace /context
+
 ENV HOME=/workspace/.home \
     WORKDIR=/workspace \
     TMUX_SESSION=claude \

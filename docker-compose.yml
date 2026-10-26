@@ -1,15 +1,17 @@
 # Claude Code (tmux) stack for Portainer — deploy from this Git repo:
 #   Stacks -> Add stack -> Repository
 #     Repository URL:       <your git remote>
-#     Repository reference: refs/heads/feature/tmux-auth-page  (main once merged)
+#     Repository reference: refs/heads/main
 #     Compose path:         docker-compose.yml
-#   Environment variables: PUID, PGID (printed by setup-media-access.sh), TZ
+#   Environment variables: PUID, PGID, TZ, and optionally CLAUDE_DATA_DIR (see .env.example)
 #
-# Host layout (all on the media disk):
-#   /media/disk1/claude          -> /workspace        working directory
-#   /media/disk1/claude/.home    -> $HOME             config, sign-in, history
+# Where things are kept:
+#   CLAUDE_DATA_DIR              -> /workspace        working directory
+#   CLAUDE_DATA_DIR/.home        -> $HOME             config, sign-in, history
+# CLAUDE_DATA_DIR is a folder on the host, owned by PUID:PGID. Leave it unset to use the
+# "claude-data" Docker volume instead (nothing to set up on the host).
 #
-# Sign-in page:  http://<nsg-l-ip>:8765
+# Sign-in page:  http://<host>:8765
 # Attach:        docker exec -it claude-code tmux attach -t claude
 
 services:
@@ -35,8 +37,9 @@ services:
       # Optional API-key auth instead of signing in (page then shows green):
       # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
-      - /media/disk1/claude:/workspace
-      - /opt/claude-context:/context
+      # Host folder (owned by PUID:PGID) or, when unset, a Docker volume.
+      - ${CLAUDE_DATA_DIR:-claude-data}:/workspace
+      - ${CLAUDE_CONTEXT_DIR:-claude-context}:/context
     ports:
       - "${AUTH_PAGE_HOST_PORT:-8765}:8765"
     # Optional: route the page through Traefik instead of / as well as the port.
@@ -46,6 +49,10 @@ services:
     #   - "traefik.http.routers.claude-auth.rule=Host(`claude.home.lan`)"
     #   - "traefik.http.routers.claude-auth.entrypoints=web"
     #   - "traefik.http.services.claude-auth.loadbalancer.server.port=8765"
+
+volumes:
+  claude-data:        # used only when CLAUDE_DATA_DIR is unset
+  claude-context:     # used only when CLAUDE_CONTEXT_DIR is unset
 
 # networks:
 #   traefik_proxy:

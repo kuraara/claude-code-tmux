@@ -22,13 +22,26 @@ Inside the container, the source is at `/opt/claude-stack`.
 
 ## Deploy (Portainer)
 
-1. On the host, run `setup-media-access.sh` once. It creates the `media`
-   group and `/media/disk1/claude`, and prints `PUID` and `PGID`.
+1. Choose where Claude keeps its files (working folder, sign-in, history):
+   - **A Docker volume** (simplest): leave `CLAUDE_DATA_DIR` unset. The stack
+     creates a volume called `claude-data`.
+   - **A folder on the host**, so you can reach the files outside Docker:
+     create it, owned by the user the container runs as, and set
+     `CLAUDE_DATA_DIR` to it:
+     ```
+     sudo mkdir -p /srv/claude && sudo chown "$(id -u):$(id -g)" /srv/claude
+     ```
+     Then use `PUID=$(id -u)` and `PGID=$(id -g)` below. A folder that doesn't
+     exist yet is created by Docker as root, and Claude can't write to it.
 2. Push this repo to your Git server.
 3. In Portainer, go to Stacks → Add stack → Repository. Set the compose path
    to `docker-compose.yml`.
-4. Add the environment variables `PUID`, `PGID` and `TZ=Australia/Perth`.
+4. Add the environment variables `PUID`, `PGID`, `TZ` (e.g. `Europe/London`)
+   and, if you chose a folder, `CLAUDE_DATA_DIR`.
 5. Deploy. The first build downloads Claude Code and takes a few minutes.
+
+Without Portainer: clone the repo, copy `.env.example` to `.env`, fill it in,
+and run `docker compose up -d --build`.
 
 Portainer's web editor and upload options can't build images. The stack has to
 come from a Git repository.
@@ -42,8 +55,8 @@ come from a Git repository.
    paste it into the page.
 4. The page switches to the green banner.
 
-Your sign-in is saved in `/media/disk1/claude/.home`, so it survives
-rebuilds.
+Your sign-in is saved in `.home` inside `CLAUDE_DATA_DIR` (or the
+`claude-data` volume), so it survives rebuilds.
 
 If the page can't find a link, attach to the session and sign in by hand:
 
@@ -78,6 +91,8 @@ tmux. Keep it on your LAN. Don't forward port 8765 through the router.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `PUID` / `PGID` | 1000 / 1500 | Build-time uid and gid for file ownership. |
+| `CLAUDE_DATA_DIR` | `claude-data` volume | Host folder for the working directory, sign-in and history (mounted at `/workspace`). Must be owned by `PUID:PGID`. |
+| `CLAUDE_CONTEXT_DIR` | `claude-context` volume | Host folder mounted read-write at `/context`. |
 | `CLAUDE_CODE_VERSION` | latest | Build-time npm version. |
 | `AUTH_PAGE_HOST_PORT` | 8765 | Host port for the page. |
 | `CLAUDE_CONTINUE` | 1 | Resumes the last conversation on start. Set to `0` to always start fresh. |
