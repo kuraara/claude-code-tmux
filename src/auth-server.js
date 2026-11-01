@@ -141,7 +141,9 @@ function banner(kind, title, sub) {
   return `<div class="banner ${kind}" role="status">${kind === 'ok' ? TICK : ALERT}<div><strong>${title}</strong><span>${sub}</span></div></div>`;
 }
 
-const attach = `docker exec -it ${CONTAINER} tmux attach -t ${SESSION}`;
+// Hints shown on the page. The bare-metal installer sets these to tmux/systemctl commands.
+const attach = process.env.ATTACH_CMD || `docker exec -it ${CONTAINER} tmux attach -t ${SESSION}`;
+const restartHint = process.env.RESTART_HINT ? process.env.RESTART_HINT.replace(/\\n/g, '\n') :`docker logs ${CONTAINER}\ndocker restart ${CONTAINER}`;
 
 function body(st) {
   if (st.state === 'ready') {
@@ -151,8 +153,8 @@ function body(st) {
   }
   if (st.state === 'no-session') {
     return banner('warn', 'Claude’s tmux session isn’t running', 'The page can’t see a login screen.') +
-      `<section class="card"><p>Check the container logs, or restart the container:</p>
-       <pre>docker logs ${esc(CONTAINER)}\ndocker restart ${esc(CONTAINER)}</pre></section>`;
+      `<section class="card"><p>Check the logs, or restart it:</p>
+       <pre>${esc(restartHint)}</pre></section>`;
   }
   const snap = `<details${st.state === 'waiting' ? ' open' : ''}><summary>What Claude is showing</summary><pre id="snap">${esc(st.snapshot || '')}</pre></details>`;
   if (st.state === 'login') {
