@@ -61,6 +61,38 @@ after a container restart or reboot. If there's nothing to resume, it starts a
 new conversation. To start fresh, run `/clear` inside Claude. To turn resuming
 off, set `CLAUDE_CONTINUE=0`.
 
+## Optional: sign in from a phone over the Pi's own Wi-Fi
+
+For a Pi with no screen on a network your phone isn't on. While Claude waits to be signed in,
+the Pi runs its own Wi-Fi network. Join it, open `http://10.42.0.1:8765` and sign in. Once
+Claude is signed in, the hotspot goes off by itself.
+
+Install it on the host, for the Docker container or the bare-metal install:
+
+```
+curl -fsSL https://raw.githubusercontent.com/kuraara/claude-code-tmux/main/hotspot/install.sh | sudo bash
+```
+
+With the bare-metal installer, add `HOTSPOT=1` after `sudo` instead. The network name and
+password are shown at the end, with a QR code to scan; they're kept in
+`/etc/default/claude-hotspot`.
+
+- Needs Raspberry Pi OS Bookworm or later (NetworkManager), and Ethernet: Claude has to reach
+  Anthropic to finish signing in, and the Wi-Fi chip can't be a hotspot and join a network at
+  the same time. If Wi-Fi is the Pi's only connection, the hotspot stays off and
+  `journalctl -u claude-hotspot` says why.
+- Phones on the hotspot get internet through the Pi (needed to open the sign-in link without
+  mobile data). Set `SHARE=0` in the settings file to keep them to the Pi only.
+- It checks the sign-in page every 15 seconds and acts after two checks agree. If the page
+  stops answering, it leaves the hotspot as it is.
+- Remove: `sudo systemctl disable --now claude-hotspot && sudo /opt/claude-tmux/pi-hotspot.sh remove`
+
+| Path | What it does |
+| --- | --- |
+| `hotspot/install.sh` | Installs the scripts and the `claude-hotspot` service. |
+| `hotspot/claude-hotspot-watch.sh` | Reads `/api/status` and turns the hotspot on or off. |
+| `hotspot/pi-hotspot.sh` | The hotspot itself (NetworkManager). Also usable by hand. |
+
 ## Update Claude Code
 
 The auto-updater is off because the CLI is baked into the image. To update,

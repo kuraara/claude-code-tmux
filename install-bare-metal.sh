@@ -15,6 +15,8 @@
 #   PORT          sign-in page port                      (default: 8765)
 #   SESSION       tmux session name                      (default: claude)
 #   CLAUDE_ARGS   extra arguments for claude             (default: none)
+#   HOTSPOT=1     also install the hotspot add-on: while Claude waits to be signed in, the Pi
+#                 runs its own Wi-Fi network for your phone (see hotspot/install.sh)
 #
 # Afterwards:
 #   Sign in:      http://<this machine>:8765
@@ -164,6 +166,10 @@ if systemctl is-active -q claude-tmux && systemctl is-active -q claude-auth; the
   echo "Sign in:  http://${ADDR:-$(hostname)}:$PORT"
   echo "Attach:   tmux attach -t $SESSION   (as $CLAUDE_USER; Ctrl-b then d to detach)"
   echo "Claude starts in $START_DIR and comes back by itself after a reboot."
+  if [ "${HOTSPOT:-0}" = 1 ]; then
+    say "Hotspot add-on"
+    PORT=$PORT bash "$SRC/stack/hotspot/install.sh"
+  fi
 else
   systemctl --no-pager status claude-tmux claude-auth | tail -20
   die "a service didn't start; see above"
